@@ -21,7 +21,7 @@ function App() {
 
     try {
       const response = await axios.post(
-        "https://primary-production-edf3.up.railway.app/webhook-test/webhook-serp",
+        "https://primary-production-edf3.up.railway.app/webhook/webhook-serp",
         {
           text: inputText,
           fileType: fileType,
