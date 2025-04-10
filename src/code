@@ -1,0 +1,221 @@
+import React, { useState } from "react";
+import axios from "axios";
+
+function App() {
+  const [inputText, setInputText] = useState("");
+  const [fileType, setFileType] = useState("pdf"); // Default to PDF
+  const [responseMsg, setResponseMsg] = useState("");
+  const [downloadLink, setDownloadLink] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSearch = async () => {
+    if (!inputText.trim()) {
+      setResponseMsg("Please enter some text to search");
+      return;
+    }
+
+    setIsLoading(true);
+    setResponseMsg("");
+    setDownloadLink("");
+
+    try {
+      // Sending the request to n8n
+      const response = await axios.post("http://localhost:5000/send-to-n8n", {
+        text: inputText,
+        fileType: fileType,
+      });
+
+      console.log("Full response:", response.data);
+
+      // Check if the response has a download link
+      if (response.data && response.data.fileUrl) {
+        // Extract URL if it's embedded in text
+        let fileUrl = response.data.fileUrl;
+        if (fileUrl.includes("http")) {
+          const urlMatch = fileUrl.match(/(https?:\/\/[^\s]+)/);
+          if (urlMatch) {
+            fileUrl = urlMatch[0];
+          }
+        }
+
+        setDownloadLink(fileUrl);
+        setResponseMsg(response.data.message || "File generated successfully!");
+      } else if (response.data && response.data.rawResponse) {
+        // Try to extract URL from any string property in rawResponse
+        let foundUrl = null;
+        Object.values(response.data.rawResponse).forEach((value) => {
+          if (typeof value === "string" && value.includes("http")) {
+            const urlMatch = value.match(/(https?:\/\/[^\s]+)/);
+            if (urlMatch) {
+              foundUrl = urlMatch[0];
+            }
+          }
+        });
+
+        if (foundUrl) {
+          setDownloadLink(foundUrl);
+          setResponseMsg("File generated successfully!");
+        } else {
+          setResponseMsg(
+            "Received response from n8n, but couldn't extract a download link."
+          );
+          console.log("Raw n8n response:", response.data.rawResponse);
+        }
+      } else {
+        setResponseMsg("File not generated. Try again!");
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      const errorMessage = error.response?.data?.error || error.message;
+      const errorDetails = error.response?.data?.details || "";
+      setResponseMsg(
+        `Error: ${errorMessage}${errorDetails ? ` (${errorDetails})` : ""}`
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div style={{ padding: "2rem", fontFamily: "Arial" }}>
+      <h2>n8n Webhook Trigger</h2>
+      <div style={{ marginBottom: "1rem" }}>
+        <input
+          type="text"
+          placeholder="Enter search query"
+          value={inputText}
+          onChange={(e) => setInputText(e.target.value)}
+          style={{ padding: "0.5rem", width: "300px" }}
+        />
+        <select
+          value={fileType}
+          onChange={(e) => setFileType(e.target.value)}
+          style={{ padding: "0.5rem", marginLeft: "1rem" }}
+        >
+          <option value="pdf">PDF</option>
+          <option value="excel">Excel</option>
+        </select>
+        <button
+          onClick={handleSearch}
+          disabled={isLoading}
+          style={{
+            padding: "0.5rem 1rem",
+            marginLeft: "1rem",
+            cursor: isLoading ? "not-allowed" : "pointer",
+          }}
+        >
+          {isLoading ? "Processing..." : "Search"}
+        </button>
+      </div>
+
+      {/* Display the response message */}
+      {responseMsg && (
+        <p style={{ color: downloadLink ? "green" : "red" }}>{responseMsg}</p>
+      )}
+
+      {/* If a download link is returned, show it */}
+      {downloadLink && (
+        <div
+          style={{
+            marginTop: "1rem",
+            padding: "1rem",
+            border: "1px solid #ddd",
+            borderRadius: "4px",
+          }}
+        >
+          <p>Your file is ready. Click the button below to download:</p>
+          <a
+            href={downloadLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: "inline-block",
+              padding: "0.5rem 1rem",
+              background: "#4CAF50",
+              color: "white",
+              textDecoration: "none",
+              borderRadius: "4px",
+            }}
+          >
+            Download File
+          </a>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default App;
+
+// import React, { useState } from "react";
+// import axios from "axios";
+
+// function App() {
+//   const [inputText, setInputText] = useState("");
+//   const [fileType, setFileType] = useState("pdf"); // Default to PDF
+//   const [responseMsg, setResponseMsg] = useState("");
+//   const [downloadLink, setDownloadLink] = useState(""); // New state to store the download link
+
+//   const handleSearch = async () => {
+//     try {
+//       // Sending the request to n8n
+//       const response = await axios.post("http://localhost:5000/send-to-n8n", {
+//         text: inputText,
+//         fileType: fileType,
+//       });
+
+//       // Check if the response has a download link
+//       if (response.data && response.data.fileUrl) {
+//         setDownloadLink(response.data.fileUrl); // Set the download link from n8n response
+//         setResponseMsg("File generated successfully!"); // Update the response message
+//         console.log("Response from backend:", response.data);
+//       } else {
+//         setResponseMsg("File not generated. Try again!");
+//       }
+//     } catch (error) {
+//       setResponseMsg("Error sending to n8n");
+//     }
+//   };
+
+//   return (
+//     <div style={{ padding: "2rem", fontFamily: "Arial" }}>
+//       <h2>n8n Webhook Trigger</h2>
+//       <input
+//         type="text"
+//         placeholder="Enter some text"
+//         value={inputText}
+//         onChange={(e) => setInputText(e.target.value)}
+//         style={{ padding: "0.5rem", width: "300px" }}
+//       />
+//       <select
+//         value={fileType}
+//         onChange={(e) => setFileType(e.target.value)}
+//         style={{ padding: "0.5rem", marginLeft: "1rem" }}
+//       >
+//         <option value="pdf">PDF</option>
+//         <option value="excel">Excel</option>
+//       </select>
+//       <button
+//         onClick={handleSearch}
+//         style={{ padding: "0.5rem 1rem", marginLeft: "1rem" }}
+//       >
+//         Search
+//       </button>
+
+//       {/* Display the response message */}
+//       {responseMsg && <p>{responseMsg}</p>}
+
+//       {/* If a download link is returned, show it */}
+//       {downloadLink && (
+//         <div>
+//           <p>Your file is ready. Click the link below to download:</p>
+//           <a href={downloadLink} target="_blank" rel="noopener noreferrer">
+//             Download File
+//           </a>
+//         </div>
+//       )}
+//     </div>
+//   );
+// }
+
+// export default App;
